@@ -1,0 +1,30 @@
+-- This file has been generated from package.yaml by hpack version 0.20.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 7c0cdd39d87f83742872db28dbee706f7672c9184755912e7600f278f95e8a9d
+
+name:           safe-buffer-monad
+version:        0.1.0.0
+category:       Web
+homepage:       https://github.com/dcastro/safe-buffer-monad#readme
+author:         Diogo Castro
+maintainer:     dc@diogocastro.com
+copyright:      2017 Diogo Castro
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+
+extra-source-files:
+    README.md
+
+executable safe-buffer-monad
+  main-is: Main.hs
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+  other-modules:
+      Paths_safe_buffer_monad
+  default-language: Haskell2010
