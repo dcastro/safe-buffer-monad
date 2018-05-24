@@ -20,3 +20,13 @@ library:
     - -Wall
     - -fwarn-tabs
     - -O2
+
+tests:
+  test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options: -Wall
+    dependencies:
+    - safe-buffer-monad
+    - hspec
+    - QuickCheck
