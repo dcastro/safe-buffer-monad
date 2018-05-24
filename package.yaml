@@ -14,7 +14,9 @@ extra-source-files:
 dependencies:
   - base >= 4.7 && < 5
 
-executables:
-  safe-buffer-monad:
-    source-dirs:      src
-    main:             Main.hs
+library:
+  source-dirs: src
+  ghc-options:
+    - -Wall
+    - -fwarn-tabs
+    - -O2
