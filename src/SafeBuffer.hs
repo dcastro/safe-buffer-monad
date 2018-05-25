@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FunctionalDependencies     #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
@@ -25,7 +26,7 @@ import           Control.Monad.Zip
 import           UnliftIO.IORef
 import           UnliftIO.STM
 
-class Monad m => SafeBufferMonad s m where
+class Monad m => SafeBufferMonad s m | m -> s where
   writeBuffer :: s -> m ()
   readBuffer :: m s
   clearBuffer :: m s
