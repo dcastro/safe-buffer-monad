@@ -13,6 +13,9 @@ extra-source-files:
 
 dependencies:
   - base >= 4.7 && < 5
+  - mtl
+  - stm
+  - exceptions
 
 library:
   source-dirs: src
@@ -20,6 +23,7 @@ library:
     - -Wall
     - -fwarn-tabs
     - -O2
+    - -fdefer-typed-holes
 
 tests:
   test:

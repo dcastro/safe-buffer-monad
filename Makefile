@@ -11,4 +11,5 @@ ghcid-test:
 			--bench \
 			--ghci-options=-fobject-code" \
 		--test main \
-		--warnings
+		--warnings \
+		--restart package.yaml
