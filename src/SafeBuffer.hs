@@ -17,8 +17,11 @@ import           Control.Monad.Writer
 
 class Monad m => SafeBufferMonad s m where
   writeBuffer :: s -> m ()
+  readBuffer :: m s
+  clearBuffer :: m s
 
-newtype SafeBufferConcurrentT s m a = SafeBufferConcurrentT { run :: ReaderT (TVar s) m a }
+newtype SafeBufferConcurrentT s m a =
+  SafeBufferConcurrentT { run :: ReaderT (TVar s) m a }
   deriving ( Functor
            , Applicative
            , Monad
@@ -53,8 +56,18 @@ tryRunConcurrently sb = do
 instance (Monad m, MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferConcurrentT s m) where
   writeBuffer :: s -> SafeBufferConcurrentT s m ()
   writeBuffer msg =
-    SafeBufferConcurrentT $ ReaderT $ \tvar -> do
+    SafeBufferConcurrentT $ ReaderT $ \tvar ->
       modifyTVarIO' tvar (`mappend` msg)
+
+  readBuffer :: SafeBufferConcurrentT s m s
+  readBuffer =
+    SafeBufferConcurrentT $ ReaderT $ \tvar ->
+      readTVarIO' tvar
+
+  clearBuffer :: SafeBufferConcurrentT s m s
+  clearBuffer = 
+    SafeBufferConcurrentT $ ReaderT $ \tvar ->
+      liftIO $ atomically $ swapTVar tvar mempty
 
 --------------------------------------------------------------------------------
 -- Lifted STM functions
