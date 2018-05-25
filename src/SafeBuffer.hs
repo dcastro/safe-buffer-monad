@@ -13,9 +13,15 @@ module SafeBuffer
   , tryRunSafeBufferSync
   ) where
 
+import           Control.Applicative
 import           Control.Monad.Catch
+import           Control.Monad.Cont
+import           Control.Monad.Except
+import           Control.Monad.Fail
 import           Control.Monad.Reader
+import           Control.Monad.State
 import           Control.Monad.Writer
+import           Control.Monad.Zip
 import           UnliftIO.IORef
 import           UnliftIO.STM
 
@@ -31,14 +37,22 @@ newtype SafeBufferConcurrentT s m a =
   SafeBufferConcurrentT { runSafeBufferConcurrentT :: ReaderT (TVar s) m a }
   deriving ( Functor
            , Applicative
+           , Alternative
            , Monad
            , MonadTrans
            , MonadIO
            , MonadReader (TVar s)
            , MonadWriter r
+           , MonadState s
+           , MonadZip
            , MonadThrow
            , MonadCatch
            , MonadMask
+           , MonadError e
+           , MonadFail
+           , MonadPlus
+           , MonadCont
+           , MonadFix
            )
 
 runSafeBufferConcurrently ::
@@ -85,14 +99,22 @@ newtype SafeBufferSyncT s m a =
   SafeBufferSyncT { runSafeBufferSyncT :: ReaderT (IORef s) m a }
   deriving ( Functor
            , Applicative
+           , Alternative
            , Monad
            , MonadTrans
            , MonadIO
            , MonadReader (IORef s)
            , MonadWriter r
+           , MonadState s
+           , MonadZip
            , MonadThrow
            , MonadCatch
            , MonadMask
+           , MonadError e
+           , MonadFail
+           , MonadPlus
+           , MonadCont
+           , MonadFix
            )
 
 runSafeBufferSync ::
