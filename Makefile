@@ -2,7 +2,8 @@ ghcid:
 	ghcid \
 		--command "stack ghci \
 			--test \
-			--bench"
+			--bench" \
+			--restart package.yaml
 
 ghcid-test:
 	ghcid \
