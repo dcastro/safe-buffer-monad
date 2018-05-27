@@ -172,7 +172,7 @@ instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferSyncT s m) where
   writeBuffer :: s -> SafeBufferSyncT s m ()
   writeBuffer msg =
     SafeBufferSyncT $ ReaderT $ \ref ->
-      modifyIORef ref (`mappend` msg)
+      modifyIORef' ref (`mappend` msg)
 
   readBuffer :: SafeBufferSyncT s m s
   readBuffer =
