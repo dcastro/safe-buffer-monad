@@ -97,7 +97,7 @@ instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferConcurrentT s m) 
   writeBuffer :: s -> SafeBufferConcurrentT s m ()
   writeBuffer msg =
     SafeBufferConcurrentT $ ReaderT $ \tvar ->
-      atomically $ modifyTVar tvar (`mappend` msg)
+      atomically $ modifyTVar' tvar (`mappend` msg)
 
   readBuffer :: SafeBufferConcurrentT s m s
   readBuffer =
