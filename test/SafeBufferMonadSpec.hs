@@ -30,7 +30,7 @@ newtype SafeBufferMockT s m a = SafeBufferMockT { run :: StateT s m a }
   deriving (Functor, Applicative, Monad, MonadTrans)
 
 instance (Monad m, Monoid s) => SafeBufferMonad s (SafeBufferMockT s m) where
-  readBuffer = SafeBufferMockT $ get
+  readBuffer = SafeBufferMockT get
 
   writeBuffer msg = modifyBuffer (`mappend` msg)
   

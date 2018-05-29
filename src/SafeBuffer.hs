@@ -11,10 +11,10 @@ module SafeBuffer
   , execBufferConcurrently
   , runBufferConcurrently
   , tryRunBufferConcurrently
-  , SafeBufferSyncT(..)
-  , execBufferSync
-  , runBufferSync
-  , tryRunBufferSync
+  , SafeBufferT(..)
+  , execBuffer
+  , runBuffer
+  , tryRunBuffer
   ) where
 
 import           Control.Applicative
@@ -115,10 +115,10 @@ instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferConcurrentT s m) 
 
 
 --------------------------------------------------------------------------------
--- SafeBufferSyncT
+-- SafeBufferT
 --------------------------------------------------------------------------------
-newtype SafeBufferSyncT s m a =
-  SafeBufferSyncT { runBufferSyncT :: ReaderT (IORef s) m a }
+newtype SafeBufferT s m a =
+  SafeBufferT { runBufferT :: ReaderT (IORef s) m a }
   deriving ( Functor
            , Applicative
            , Alternative
@@ -139,57 +139,57 @@ newtype SafeBufferSyncT s m a =
            , MonadFix
            )
 
-execBufferSync ::
+execBuffer ::
      forall m s a
    . (MonadIO m, MonadCatch m, Monoid s)
-  => SafeBufferSyncT s m a
+  => SafeBufferT s m a
   -> m s
-execBufferSync sb = do
+execBuffer sb = do
   ref <- newIORef mempty
   catchAll
-    (runReaderT (runBufferSyncT sb) ref >> readIORef ref)
+    (runReaderT (runBufferT sb) ref >> readIORef ref)
     (\_ -> readIORef ref)
 
-runBufferSync ::
+runBuffer ::
      forall m b s a
    . (MonadIO m, MonadMask m, Monoid s)
   => (s -> m b)
-  -> SafeBufferSyncT s m a
+  -> SafeBufferT s m a
   -> m a
-runBufferSync finalize sb =
+runBuffer finalize sb =
   bracket
     (newIORef mempty)
     (\ref -> readIORef ref >>= finalize)
-    (\ref -> runReaderT (runBufferSyncT sb) ref)
+    (\ref -> runReaderT (runBufferT sb) ref)
 
-tryRunBufferSync ::
+tryRunBuffer ::
      forall m e s a
    . (MonadIO m, MonadCatch m, Monoid s, Exception e)
-  => SafeBufferSyncT s m a
+  => SafeBufferT s m a
   -> m (s, Either e a)
-tryRunBufferSync sb = do
+tryRunBuffer sb = do
   ref <- newIORef mempty
-  result <- try $ runReaderT (runBufferSyncT sb) ref
+  result <- try $ runReaderT (runBufferT sb) ref
   buffer <- readIORef ref
   pure (buffer, result)
 
-instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferSyncT s m) where
-  readBuffer :: SafeBufferSyncT s m s
+instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferT s m) where
+  readBuffer :: SafeBufferT s m s
   readBuffer =
-    SafeBufferSyncT $ ReaderT $ \ref ->
+    SafeBufferT $ ReaderT $ \ref ->
       readIORef ref
 
-  writeBuffer :: s -> SafeBufferSyncT s m ()
+  writeBuffer :: s -> SafeBufferT s m ()
   writeBuffer msg = modifyBuffer (`mappend` msg)
 
-  clearBuffer :: SafeBufferSyncT s m s
+  clearBuffer :: SafeBufferT s m s
   clearBuffer = 
-    SafeBufferSyncT $ ReaderT $ \ref -> do
+    SafeBufferT $ ReaderT $ \ref -> do
       buffer <- readIORef ref
       writeIORef ref mempty
       pure buffer
 
-  modifyBuffer :: (s -> s) -> SafeBufferSyncT s m ()
+  modifyBuffer :: (s -> s) -> SafeBufferT s m ()
   modifyBuffer f = 
-    SafeBufferSyncT $ ReaderT $ \ref ->
+    SafeBufferT $ ReaderT $ \ref ->
       modifyIORef' ref f
