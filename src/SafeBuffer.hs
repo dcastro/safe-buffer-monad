@@ -30,9 +30,10 @@ import           UnliftIO.IORef
 import           UnliftIO.STM
 
 class Monad m => SafeBufferMonad s m | m -> s where
-  writeBuffer :: s -> m ()
   readBuffer :: m s
+  writeBuffer :: s -> m ()
   clearBuffer :: m s
+  modifyBuffer :: (s -> s) -> m ()
 
 --------------------------------------------------------------------------------
 -- SafeBufferConcurrentT
@@ -94,20 +95,24 @@ tryRunBufferConcurrently sb = do
   pure (buffer, result)
 
 instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferConcurrentT s m) where
-  writeBuffer :: s -> SafeBufferConcurrentT s m ()
-  writeBuffer msg =
-    SafeBufferConcurrentT $ ReaderT $ \tvar ->
-      atomically $ modifyTVar' tvar (`mappend` msg)
-
   readBuffer :: SafeBufferConcurrentT s m s
   readBuffer =
     SafeBufferConcurrentT $ ReaderT $ \tvar ->
       readTVarIO tvar
+      
+  writeBuffer :: s -> SafeBufferConcurrentT s m ()
+  writeBuffer msg = modifyBuffer (`mappend` msg)
 
   clearBuffer :: SafeBufferConcurrentT s m s
   clearBuffer = 
     SafeBufferConcurrentT $ ReaderT $ \tvar ->
       atomically $ swapTVar tvar mempty
+
+  modifyBuffer :: (s -> s) -> SafeBufferConcurrentT s m ()
+  modifyBuffer f =
+    SafeBufferConcurrentT $ ReaderT $ \tvar ->
+      atomically $ modifyTVar' tvar f
+
 
 --------------------------------------------------------------------------------
 -- SafeBufferSyncT
@@ -169,15 +174,13 @@ tryRunBufferSync sb = do
   pure (buffer, result)
 
 instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferSyncT s m) where
-  writeBuffer :: s -> SafeBufferSyncT s m ()
-  writeBuffer msg =
-    SafeBufferSyncT $ ReaderT $ \ref ->
-      modifyIORef' ref (`mappend` msg)
-
   readBuffer :: SafeBufferSyncT s m s
   readBuffer =
     SafeBufferSyncT $ ReaderT $ \ref ->
       readIORef ref
+
+  writeBuffer :: s -> SafeBufferSyncT s m ()
+  writeBuffer msg = modifyBuffer (`mappend` msg)
 
   clearBuffer :: SafeBufferSyncT s m s
   clearBuffer = 
@@ -185,3 +188,8 @@ instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferSyncT s m) where
       buffer <- readIORef ref
       writeIORef ref mempty
       pure buffer
+
+  modifyBuffer :: (s -> s) -> SafeBufferSyncT s m ()
+  modifyBuffer f = 
+    SafeBufferSyncT $ ReaderT $ \ref ->
+      modifyIORef' ref f
