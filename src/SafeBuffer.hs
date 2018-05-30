@@ -1,9 +1,12 @@
+{-# LANGUAGE AllowAmbiguousTypes        #-}
 {-# LANGUAGE ExplicitForAll             #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FunctionalDependencies     #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TypeApplications           #-}
 
 module SafeBuffer
   ( SafeBufferMonad(..)
@@ -61,18 +64,18 @@ newtype SafeBufferConcurrentT s m a =
            )
 
 execBufferConcurrently ::
-     forall m s a
-   . (MonadIO m, MonadCatch m, Monoid s)
+     forall m e s a
+   . (MonadIO m, MonadCatch m, Monoid s, Exception e)
   => SafeBufferConcurrentT s m a
   -> m s
 execBufferConcurrently sb = do
   tvar <- newTVarIO mempty
-  catchAll
+  catch @m @e
     (runReaderT (runBufferConcurrentT sb) tvar >> readTVarIO tvar)
     (\_ -> readTVarIO tvar)
   
 runBufferConcurrently ::
-     forall m b s a
+     forall m s a b
    . (MonadIO m, MonadMask m, Monoid s)
   => (s -> m b)
   -> SafeBufferConcurrentT s m a
@@ -140,18 +143,18 @@ newtype SafeBufferT s m a =
            )
 
 execBuffer ::
-     forall m s a
-   . (MonadIO m, MonadCatch m, Monoid s)
+     forall m e s a
+   . (MonadIO m, MonadCatch m, Monoid s, Exception e)
   => SafeBufferT s m a
   -> m s
 execBuffer sb = do
   ref <- newIORef mempty
-  catchAll
+  catch @m @e
     (runReaderT (runBufferT sb) ref >> readIORef ref)
     (\_ -> readIORef ref)
 
 runBuffer ::
-     forall m b s a
+     forall m s a b
    . (MonadIO m, MonadMask m, Monoid s)
   => (s -> m b)
   -> SafeBufferT s m a

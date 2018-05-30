@@ -4,11 +4,12 @@
 module SafeBufferConcurrentTSpec where
 
 import           Control.Concurrent
-import           Control.Exception.Base
+import           Control.Exception.Base (ErrorCall)
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           SafeBuffer
 import           Test.Hspec
+import           UnliftIO.Exception     (IOException, throwIO)
 
 spec :: Spec
 spec =
@@ -39,32 +40,27 @@ spec =
       ) `shouldReturn` ([0], Right 3)
 
     describe "execBufferConcurrently" $ do
-
-      it "handles sync exceptions" $ do
-        buffer <- execBufferConcurrently $ do
+      it "catches exceptions" $ do
+        buffer <- execBufferConcurrently @_ @ErrorCall $ do
           writeBuffer [1]
           void $ error "yo"
           writeBuffer [2]
         buffer `shouldBe` [1]
 
-      it "handles async exceptions" $ do
-        buffer <- execBufferConcurrently $ do
+    describe "tryRunBufferConcurrently" $ do
+      it "returns exceptions" $ do
+        (tryRunBufferConcurrently $ do
           writeBuffer [1]
-
-          threadId <- liftIO $ myThreadId
-          void $ liftIO . forkIO $ 
-            liftIO $ throwTo threadId ThreadKilled
-          liftIO . threadDelay $ 3 * 1000 * 1000
-
+          void . throwIO $ userError "oops"
           writeBuffer [2]
-        buffer `shouldBe` [1]
-
+          ) `shouldReturn` ([1], Left (userError "oops"))
+    
     describe "runBufferConcurrently" $ do
       it "handles sync exceptions" $ do
         bufferCopy <- newEmptyMVar
         let action = runBufferConcurrently (putMVar bufferCopy) $ do
                         writeBuffer [1]
-                        void $ throw $ userError "oops"
+                        void . throwIO $ userError "oops"
                         writeBuffer [2]
                         pure 8
         action `shouldThrow` \x -> x == userError "oops"
@@ -73,33 +69,11 @@ spec =
 
       it "handles async exceptions" $ do
         bufferCopy <- newEmptyMVar
-
         threadId <- forkIO $ 
           runBufferConcurrently (putMVar bufferCopy) $ do
             writeBuffer [1]
             liftIO . threadDelay $ 3 * 1000 * 1000
             writeBuffer [2]
-        throwTo threadId ThreadKilled
+        killThread threadId
         xs <- takeMVar bufferCopy
         xs `shouldBe` [1]
-
-    describe "tryRunBufferConcurrently" $ do
-      it "handles sync exceptions" $ do
-        (tryRunBufferConcurrently $ do
-          writeBuffer [1]
-          void $ throw $ userError "oops"
-          writeBuffer [2]
-          ) `shouldReturn` ([1], Left (userError "oops"))
-          
-      it "handles async esceptions" $ do
-        (tryRunBufferConcurrently @IO @AsyncException $ do
-          writeBuffer [1]
-
-          threadId <- liftIO $ myThreadId
-          void $ liftIO . forkIO $ 
-            liftIO $ throwTo threadId ThreadKilled
-          liftIO . threadDelay $ 3 * 1000 * 1000
-
-          writeBuffer [2]
-          ) `shouldReturn` ([1], Left ThreadKilled)
-
