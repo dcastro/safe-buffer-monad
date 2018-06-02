@@ -63,8 +63,9 @@ newtype SafeBufferConcurrentT s m a =
            , MonadFix
            )
 
+-- | Recover from and swallow exceptions of type `e`
 execBufferConcurrently ::
-     forall m e s a
+     forall e s m a
    . (MonadIO m, MonadCatch m, Monoid s, Exception e)
   => SafeBufferConcurrentT s m a
   -> m s
@@ -73,9 +74,12 @@ execBufferConcurrently sb = do
   catch @m @e
     (runReaderT (runBufferConcurrentT sb) tvar >> readTVarIO tvar)
     (\_exception -> readTVarIO tvar)
-  
+
+-- | Runs a buffer and applies a given function to it.
+-- | If an exception occurs while running the buffer,
+-- | the function still runs before the exception is rethrown.
 runBufferConcurrently ::
-     forall m s a b
+     forall s m a b
    . (MonadIO m, MonadMask m, Monoid s)
   => (s -> m b)
   -> SafeBufferConcurrentT s m a
@@ -86,8 +90,9 @@ runBufferConcurrently finalize sb =
     (\tvar -> readTVarIO tvar >>= finalize)
     (\tvar -> runReaderT (runBufferConcurrentT sb) tvar)
 
+-- | Runs a buffer and returns it, along with either an exception or the computation's result.
 tryRunBufferConcurrently ::
-     forall m e s a
+     forall e s m a
    . (MonadIO m, MonadCatch m, Monoid s, Exception e)
   => SafeBufferConcurrentT s m a
   -> m (s, Either e a)
@@ -142,8 +147,9 @@ newtype SafeBufferT s m a =
            , MonadFix
            )
 
+-- | Recover from and swallow exceptions of type `e`
 execBuffer ::
-     forall m e s a
+     forall e s m a
    . (MonadIO m, MonadCatch m, Monoid s, Exception e)
   => SafeBufferT s m a
   -> m s
@@ -153,8 +159,11 @@ execBuffer sb = do
     (runReaderT (runBufferT sb) ref >> readIORef ref)
     (\_exception -> readIORef ref)
 
+-- | Runs a buffer and applies a given function to it.
+-- | If an exception occurs while running the buffer,
+-- | the function still runs before the exception is rethrown.
 runBuffer ::
-     forall m s a b
+     forall s m a b
    . (MonadIO m, MonadMask m, Monoid s)
   => (s -> m b)
   -> SafeBufferT s m a
@@ -165,8 +174,9 @@ runBuffer finalize sb =
     (\ref -> readIORef ref >>= finalize)
     (\ref -> runReaderT (runBufferT sb) ref)
 
+-- | Runs a buffer and returns it, along with either an exception or the computation's result.
 tryRunBuffer ::
-     forall m e s a
+     forall e s m a
    . (MonadIO m, MonadCatch m, Monoid s, Exception e)
   => SafeBufferT s m a
   -> m (s, Either e a)

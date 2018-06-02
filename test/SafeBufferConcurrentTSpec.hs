@@ -16,7 +16,7 @@ spec :: Spec
 spec =
   describe "SafeBufferConcurrentT" $ do
     it "writes to buffer" $
-      (tryRunBufferConcurrently @IO @IOException $ do
+      (tryRunBufferConcurrently @IOException $ do
         writeBuffer [1]
         writeBuffer [2]
         writeBuffer [3]
@@ -24,7 +24,7 @@ spec =
       ) `shouldReturn` ([1,2,3], Right "done")
 
     it "reads from buffer" $
-      (tryRunBufferConcurrently @IO @IOException $ do
+      (tryRunBufferConcurrently @IOException $ do
         writeBuffer [1]
         writeBuffer [2]
         buffer <- readBuffer
@@ -32,7 +32,7 @@ spec =
       ) `shouldReturn` ([1,2], Right 3)
 
     it "clears buffer" $
-      (tryRunBufferConcurrently @IO @IOException $ do
+      (tryRunBufferConcurrently @IOException $ do
         writeBuffer [1]
         writeBuffer [2]
         buffer <- clearBuffer
@@ -42,7 +42,7 @@ spec =
 
     describe "execBufferConcurrently" $ do
       it "catches exceptions" $ do
-        buffer <- execBufferConcurrently @_ @ErrorCall $ do
+        buffer <- execBufferConcurrently @ErrorCall $ do
           writeBuffer [1]
           void $ error "yo"
           writeBuffer [2]
@@ -51,7 +51,7 @@ spec =
       it "does not recover from async exceptions" $ do
         started <- newEmptyMVar
         thread <- async $ do
-          void $ execBufferConcurrently @_ @SomeException $ do
+          void $ execBufferConcurrently @SomeException $ do
             writeBuffer [1]
             putMVar started True
             threadDelay maxBound
@@ -72,7 +72,7 @@ spec =
       it "does not recover from async exceptions" $ do
         started <- newEmptyMVar
         thread <- async $ do
-          void $ tryRunBufferConcurrently @_ @SomeException $ do
+          void $ tryRunBufferConcurrently @SomeException $ do
             writeBuffer [1]
             putMVar started True
             threadDelay maxBound
