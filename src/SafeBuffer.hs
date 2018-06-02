@@ -21,7 +21,7 @@ module SafeBuffer
   ) where
 
 import           Control.Applicative
-import           Control.Monad.Catch
+import           Control.Exception.Safe
 import           Control.Monad.Cont
 import           Control.Monad.Except
 import           Control.Monad.Fail
@@ -72,7 +72,7 @@ execBufferConcurrently sb = do
   tvar <- newTVarIO mempty
   catch @m @e
     (runReaderT (runBufferConcurrentT sb) tvar >> readTVarIO tvar)
-    (\_ -> readTVarIO tvar)
+    (\_exception -> readTVarIO tvar)
   
 runBufferConcurrently ::
      forall m s a b
@@ -151,7 +151,7 @@ execBuffer sb = do
   ref <- newIORef mempty
   catch @m @e
     (runReaderT (runBufferT sb) ref >> readIORef ref)
-    (\_ -> readIORef ref)
+    (\_exception -> readIORef ref)
 
 runBuffer ::
      forall m s a b

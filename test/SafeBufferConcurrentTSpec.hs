@@ -3,13 +3,14 @@
 
 module SafeBufferConcurrentTSpec where
 
-import           Control.Concurrent
 import           Control.Exception.Base (ErrorCall)
+import           Control.Exception.Safe
 import           Control.Monad
-import           Control.Monad.IO.Class
 import           SafeBuffer
 import           Test.Hspec
-import           UnliftIO.Exception     (IOException, throwIO)
+import           UnliftIO.Async
+import           UnliftIO.Concurrent    (forkIO, killThread, newEmptyMVar,
+                                         putMVar, takeMVar, threadDelay)
 
 spec :: Spec
 spec =
@@ -47,13 +48,39 @@ spec =
           writeBuffer [2]
         buffer `shouldBe` [1]
 
+      it "does not recover from async exceptions" $ do
+        started <- newEmptyMVar
+        thread <- async $ do
+          void $ execBufferConcurrently @_ @SomeException $ do
+            writeBuffer [1]
+            putMVar started True
+            threadDelay maxBound
+            writeBuffer [2]
+          threadDelay maxBound
+        void $ takeMVar started
+        cancel thread
+        True `shouldBe` True
+
     describe "tryRunBufferConcurrently" $ do
-      it "returns exceptions" $ do
+      it "returns exceptions" $
         (tryRunBufferConcurrently $ do
           writeBuffer [1]
           void . throwIO $ userError "oops"
           writeBuffer [2]
           ) `shouldReturn` ([1], Left (userError "oops"))
+
+      it "does not recover from async exceptions" $ do
+        started <- newEmptyMVar
+        thread <- async $ do
+          void $ tryRunBufferConcurrently @_ @SomeException $ do
+            writeBuffer [1]
+            putMVar started True
+            threadDelay maxBound
+            writeBuffer [2]
+          threadDelay maxBound
+        void $ takeMVar started
+        cancel thread
+        True `shouldBe` True
     
     describe "runBufferConcurrently" $ do
       it "handles sync exceptions" $ do
@@ -72,7 +99,7 @@ spec =
         threadId <- forkIO $ 
           runBufferConcurrently (putMVar bufferCopy) $ do
             writeBuffer [1]
-            liftIO . threadDelay $ 3 * 1000 * 1000
+            threadDelay maxBound
             writeBuffer [2]
         killThread threadId
         xs <- takeMVar bufferCopy

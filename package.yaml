@@ -16,6 +16,7 @@ dependencies:
   - mtl
   - exceptions
   - unliftio
+  - safe-exceptions
 
 library:
   source-dirs: src
