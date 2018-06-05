@@ -40,48 +40,6 @@ spec =
         pure (sum buffer)
       ) `shouldReturn` ([0], Right 3)
 
-    describe "execBufferConcurrently" $ do
-      it "catches exceptions" $ do
-        buffer <- execBufferConcurrently @ErrorCall $ do
-          writeBuffer [1]
-          void $ error "yo"
-          writeBuffer [2]
-        buffer `shouldBe` [1]
-
-      it "does not recover from async exceptions" $ do
-        started <- newEmptyMVar
-        thread <- async $ do
-          void $ execBufferConcurrently @SomeException $ do
-            writeBuffer [1]
-            putMVar started True
-            threadDelay maxBound
-            writeBuffer [2]
-          threadDelay maxBound
-        void $ takeMVar started
-        cancel thread
-        True `shouldBe` True
-
-    describe "tryRunBufferConcurrently" $ do
-      it "returns exceptions" $
-        (tryRunBufferConcurrently $ do
-          writeBuffer [1]
-          void . throwIO $ userError "oops"
-          writeBuffer [2]
-          ) `shouldReturn` ([1], Left (userError "oops"))
-
-      it "does not recover from async exceptions" $ do
-        started <- newEmptyMVar
-        thread <- async $ do
-          void $ tryRunBufferConcurrently @SomeException $ do
-            writeBuffer [1]
-            putMVar started True
-            threadDelay maxBound
-            writeBuffer [2]
-          threadDelay maxBound
-        void $ takeMVar started
-        cancel thread
-        True `shouldBe` True
-    
     describe "runBufferConcurrently" $ do
       it "handles sync exceptions" $ do
         bufferCopy <- newEmptyMVar
@@ -104,3 +62,46 @@ spec =
         killThread threadId
         xs <- takeMVar bufferCopy
         xs `shouldBe` [1]
+    
+
+    describe "tryRunBufferConcurrently" $ do
+      it "returns exceptions" $
+        (tryRunBufferConcurrently $ do
+          writeBuffer [1]
+          void . throwIO $ userError "oops"
+          writeBuffer [2]
+          ) `shouldReturn` ([1], Left (userError "oops"))
+
+      it "does not recover from async exceptions" $ do
+        started <- newEmptyMVar
+        thread <- async $ do
+          void $ tryRunBufferConcurrently @SomeException $ do
+            writeBuffer [1]
+            putMVar started True
+            threadDelay maxBound
+            writeBuffer [2]
+          threadDelay maxBound
+        void $ takeMVar started
+        cancel thread
+        True `shouldBe` True
+
+    describe "execBufferConcurrently" $ do
+      it "catches exceptions" $ do
+        buffer <- execBufferConcurrently @ErrorCall $ do
+          writeBuffer [1]
+          void $ error "yo"
+          writeBuffer [2]
+        buffer `shouldBe` [1]
+
+      it "does not recover from async exceptions" $ do
+        started <- newEmptyMVar
+        thread <- async $ do
+          void $ execBufferConcurrently @SomeException $ do
+            writeBuffer [1]
+            putMVar started True
+            threadDelay maxBound
+            writeBuffer [2]
+          threadDelay maxBound
+        void $ takeMVar started
+        cancel thread
+        True `shouldBe` True

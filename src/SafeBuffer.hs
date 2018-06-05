@@ -8,14 +8,14 @@
 
 module SafeBuffer
   ( SafeBufferMonad(..)
-  , SafeBufferConcurrentT(..)
-  , execBufferConcurrently
-  , runBufferConcurrently
-  , tryRunBufferConcurrently
   , SafeBufferT(..)
-  , execBuffer
   , runBuffer
   , tryRunBuffer
+  , execBuffer
+  , SafeBufferConcurrentT(..)
+  , runBufferConcurrently
+  , tryRunBufferConcurrently
+  , execBufferConcurrently
   ) where
 
 import           Control.Applicative
@@ -83,18 +83,6 @@ instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferT s m) where
     SafeBufferT $ ReaderT $ \ref ->
       modifyIORef' ref f
 
--- | Recover from and swallow exceptions of type `e`
-execBuffer ::
-     forall e s m a
-   . (MonadIO m, MonadCatch m, Monoid s, Exception e)
-  => SafeBufferT s m a
-  -> m s
-execBuffer sb = do
-  ref <- newIORef mempty
-  catch @m @e
-    (runReaderT (runBufferT sb) ref >> readIORef ref)
-    (\_exception -> readIORef ref)
-
 -- | Runs a buffer and applies a given function to it.
 -- | If an exception occurs while running the buffer,
 -- | the function still runs before the exception is rethrown.
@@ -121,6 +109,18 @@ tryRunBuffer sb = do
   result <- try $ runReaderT (runBufferT sb) ref
   buffer <- readIORef ref
   pure (buffer, result)
+
+-- | Recover from and swallow exceptions of type `e`
+execBuffer ::
+     forall e s m a
+   . (MonadIO m, MonadCatch m, Monoid s, Exception e)
+  => SafeBufferT s m a
+  -> m s
+execBuffer sb = do
+  ref <- newIORef mempty
+  catch @m @e
+    (runReaderT (runBufferT sb) ref >> readIORef ref)
+    (\_exception -> readIORef ref)
 
 --------------------------------------------------------------------------------
 -- SafeBufferConcurrentT
@@ -166,18 +166,6 @@ instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferConcurrentT s m) 
     SafeBufferConcurrentT $ ReaderT $ \tvar ->
       atomically $ modifyTVar' tvar f
 
--- | Recover from and swallow exceptions of type `e`
-execBufferConcurrently ::
-     forall e s m a
-   . (MonadIO m, MonadCatch m, Monoid s, Exception e)
-  => SafeBufferConcurrentT s m a
-  -> m s
-execBufferConcurrently sb = do
-  tvar <- newTVarIO mempty
-  catch @m @e
-    (runReaderT (runBufferConcurrentT sb) tvar >> readTVarIO tvar)
-    (\_exception -> readTVarIO tvar)
-
 -- | Runs a buffer and applies a given function to it.
 -- | If an exception occurs while running the buffer,
 -- | the function still runs before the exception is rethrown.
@@ -204,3 +192,15 @@ tryRunBufferConcurrently sb = do
   result <- try $ runReaderT (runBufferConcurrentT sb) tvar
   buffer <- readTVarIO tvar
   pure (buffer, result)
+
+-- | Recover from and swallow exceptions of type `e`
+execBufferConcurrently ::
+     forall e s m a
+   . (MonadIO m, MonadCatch m, Monoid s, Exception e)
+  => SafeBufferConcurrentT s m a
+  -> m s
+execBufferConcurrently sb = do
+  tvar <- newTVarIO mempty
+  catch @m @e
+    (runReaderT (runBufferConcurrentT sb) tvar >> readTVarIO tvar)
+    (\_exception -> readTVarIO tvar)

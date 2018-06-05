@@ -13,7 +13,7 @@ import           Test.Hspec
 spec :: Spec
 spec =
   describe "SafeBufferMonad" $
-    it "is mockable" $ do
+    it "is mockable" $
       runIdentity (runBufferMock someFunction) `shouldBe` (6, [1,2,3])
         where
           someFunction :: SafeBufferMonad [Int] m => m Int
