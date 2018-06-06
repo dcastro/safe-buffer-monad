@@ -1,20 +1,20 @@
 name:                safe-buffer-monad
 version:             0.1.0.0
-#synopsis:
-#description:
+synopsis:            A monadic buffer resilient to exceptions
+description:         Please see README.md
 homepage:            https://github.com/dcastro/safe-buffer-monad#readme
+github:              dcastro/safe-buffer-monad
 license:             BSD3
 author:              Diogo Castro
 maintainer:          dc@diogocastro.com
 copyright:           2017 Diogo Castro
-category:            Web
+category:            Control
 extra-source-files:
 - README.md
 
 dependencies:
   - base >= 4.7 && < 5
   - mtl
-  - exceptions
   - unliftio
   - safe-exceptions
 
@@ -34,4 +34,3 @@ tests:
     dependencies:
     - safe-buffer-monad
     - hspec
-    - QuickCheck
