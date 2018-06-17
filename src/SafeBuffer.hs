@@ -23,6 +23,7 @@ module SafeBuffer
   ) where
 
 import           Control.Applicative
+import           Control.Concurrent.STM
 import           Control.Exception.Safe
 import           Control.Monad.Cont
 import           Control.Monad.Except
@@ -31,8 +32,7 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Writer
 import           Control.Monad.Zip
-import           UnliftIO.IORef
-import           UnliftIO.STM
+import           Data.IORef
 
 class Monad m => SafeBufferMonad s m | m -> s where
   -- | Retrieves the buffer's current content.
@@ -74,14 +74,14 @@ instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferT s m) where
   readBuffer :: SafeBufferT s m s
   readBuffer =
     SafeBufferT $ ReaderT $ \ref ->
-      readIORef ref
+      liftIO $ readIORef ref
 
   writeBuffer :: s -> SafeBufferT s m ()
   writeBuffer msg = modifyBuffer (`mappend` msg)
 
   clearBuffer :: SafeBufferT s m s
   clearBuffer = 
-    SafeBufferT $ ReaderT $ \ref -> do
+    SafeBufferT $ ReaderT $ \ref -> liftIO $ do
       buffer <- readIORef ref
       writeIORef ref mempty
       pure buffer
@@ -89,7 +89,7 @@ instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferT s m) where
   modifyBuffer :: (s -> s) -> SafeBufferT s m ()
   modifyBuffer f = 
     SafeBufferT $ ReaderT $ \ref ->
-      modifyIORef' ref f
+      liftIO $ modifyIORef' ref f
 
 -- | Runs a buffer and applies a given function to it.
 -- If any exception occurs while running the buffer,
@@ -102,8 +102,8 @@ runBuffer ::
   -> m a
 runBuffer finalize sb =
   bracket
-    (newIORef mempty)
-    (\ref -> readIORef ref >>= finalize)
+    (liftIO $ newIORef mempty)
+    (\ref -> liftIO (readIORef ref) >>= finalize)
     (\ref -> runReaderT (runBufferT sb) ref)
 
 -- | Runs a buffer and returns it, along with either an exception 
@@ -118,9 +118,9 @@ tryRunBuffer ::
   => SafeBufferT s m a
   -> m (s, Either e a)
 tryRunBuffer sb = do
-  ref <- newIORef mempty
+  ref <- liftIO $ newIORef mempty
   result <- try $ runReaderT (runBufferT sb) ref
-  buffer <- readIORef ref
+  buffer <- liftIO $ readIORef ref
   pure (buffer, result)
 
 -- | Runs a buffer and swallow exceptions of type `e`.
@@ -134,10 +134,10 @@ execBuffer ::
   => SafeBufferT s m a
   -> m s
 execBuffer sb = do
-  ref <- newIORef mempty
+  ref <- liftIO $ newIORef mempty
   catch @m @e
-    (runReaderT (runBufferT sb) ref >> readIORef ref)
-    (\_exception -> readIORef ref)
+    (runReaderT (runBufferT sb) ref >> liftIO (readIORef ref))
+    (\_exception -> liftIO $ readIORef ref)
 
 --------------------------------------------------------------------------------
 -- SafeBufferConcurrentT
@@ -168,7 +168,7 @@ instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferConcurrentT s m) 
   readBuffer :: SafeBufferConcurrentT s m s
   readBuffer =
     SafeBufferConcurrentT $ ReaderT $ \tvar ->
-      readTVarIO tvar
+      liftIO $ readTVarIO tvar
 
   writeBuffer :: s -> SafeBufferConcurrentT s m ()
   writeBuffer msg = modifyBuffer (`mappend` msg)
@@ -176,12 +176,12 @@ instance (MonadIO m, Monoid s) => SafeBufferMonad s (SafeBufferConcurrentT s m) 
   clearBuffer :: SafeBufferConcurrentT s m s
   clearBuffer = 
     SafeBufferConcurrentT $ ReaderT $ \tvar ->
-      atomically $ swapTVar tvar mempty
+      liftIO $ atomically $ swapTVar tvar mempty
 
   modifyBuffer :: (s -> s) -> SafeBufferConcurrentT s m ()
   modifyBuffer f =
     SafeBufferConcurrentT $ ReaderT $ \tvar ->
-      atomically $ modifyTVar' tvar f
+      liftIO $ atomically $ modifyTVar' tvar f
 
 -- | Runs a buffer that can be safely shared accross threads and applies a given function to it.
 -- If an exception occurs while running the buffer,
@@ -194,8 +194,8 @@ runBufferConcurrently ::
   -> m a
 runBufferConcurrently finalize sb =
   bracket
-    (newTVarIO mempty)
-    (\tvar -> readTVarIO tvar >>= finalize)
+    (liftIO $ newTVarIO mempty)
+    (\tvar -> liftIO (readTVarIO tvar) >>= finalize)
     (\tvar -> runReaderT (runBufferConcurrentT sb) tvar)
 
 -- | Runs a buffer that can be safely shared accross threads and returns it, along with either an exception 
@@ -210,9 +210,9 @@ tryRunBufferConcurrently ::
   => SafeBufferConcurrentT s m a
   -> m (s, Either e a)
 tryRunBufferConcurrently sb = do
-  tvar <- newTVarIO mempty
+  tvar <- liftIO $ newTVarIO mempty
   result <- try $ runReaderT (runBufferConcurrentT sb) tvar
-  buffer <- readTVarIO tvar
+  buffer <- liftIO $ readTVarIO tvar
   pure (buffer, result)
 
 -- | Runs a buffer that can be safely shared accross threads, and swallows exceptions of type `e`.
@@ -226,7 +226,7 @@ execBufferConcurrently ::
   => SafeBufferConcurrentT s m a
   -> m s
 execBufferConcurrently sb = do
-  tvar <- newTVarIO mempty
+  tvar <- liftIO $ newTVarIO mempty
   catch @m @e
-    (runReaderT (runBufferConcurrentT sb) tvar >> readTVarIO tvar)
-    (\_exception -> readTVarIO tvar)
+    (runReaderT (runBufferConcurrentT sb) tvar >> liftIO (readTVarIO tvar))
+    (\_exception -> liftIO $ readTVarIO tvar)

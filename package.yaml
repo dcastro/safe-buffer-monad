@@ -1,5 +1,5 @@
 name:                safe-buffer-monad
-version:             0.1.0.0
+version:             0.1.0
 synopsis:            A monadic buffer resilient to exceptions
 description:         Please see README.md
 homepage:            https://github.com/dcastro/safe-buffer-monad#readme
@@ -14,17 +14,15 @@ extra-source-files:
 
 dependencies:
   - base >= 4.7 && < 5
-  - mtl
-  - unliftio
-  - safe-exceptions
+  - mtl >= 2.0 && < 3.0
+  - stm >= 2.0 && < 3.0
+  - safe-exceptions >= 0.1 && < 1.0
 
 library:
   source-dirs: src
   ghc-options:
     - -Wall
     - -fwarn-tabs
-    - -O2
-    - -fdefer-typed-holes
 
 tests:
   test:
@@ -34,3 +32,4 @@ tests:
     dependencies:
     - safe-buffer-monad
     - hspec
+    - unliftio
